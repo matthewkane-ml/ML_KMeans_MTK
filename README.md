@@ -1,110 +1,68 @@
-# Data Science Project Boilerplate
+# K-Means Clustering — California Housing Segments
 
-This boilerplate is designed to kickstart data science projects by providing a basic setup for database connections, data processing, and machine learning model development. It includes a structured folder organization for your datasets and a set of pre-defined Python packages necessary for most data science tasks.
+> Unsupervised segmentation of California census tracts using K-Means (k=6) on median income, latitude, and longitude — producing geographically coherent clusters that a supervised Decision Tree can reproduce with 100% fidelity, validating cluster consistency.
 
-## Structure
+---
 
-The project is organized as follows:
+## Problem
 
-- **`src/app.py`** → Main Python script where your project will run.
-- **`src/explore.ipynb`** → Notebook for exploration and testing. Once exploration is complete, migrate the clean code to `app.py`.
-- **`src/utils.py`** → Auxiliary functions, such as database connection.
-- **`requirements.txt`** → List of required Python packages.
-- **`models/`** → Will contain your SQLAlchemy model classes.
-- **`data/`** → Stores datasets at different stages:
-  - **`data/raw/`** → Raw data.
-  - **`data/interim/`** → Temporarily transformed data.
-  - **`data/processed/`** → Data ready for analysis.
+Group California housing districts into meaningful segments based on location and income — without any predefined labels. Real estate analysts, urban planners, and lenders use geographic–income segmentation to understand regional housing markets, identify underserved areas, and set risk-adjusted pricing. This is an unsupervised learning problem: there is no "correct" answer, only meaningful vs. meaningless groupings.
 
+## Dataset
 
-## ⚡ Initial Setup in Codespaces (Recommended)
+- **Source:** California Housing dataset (scikit-learn / GitHub)
+- **Size:** 20,640 census tract records
+- **Full features available:** MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, Latitude, Longitude, MedHouseVal
+- **Features used:** Only 3 — `MedInc`, `Latitude`, `Longitude`
 
-No manual setup is required, as **Codespaces is automatically configured** with the predefined files created by the academy for you. Just follow these steps:
+The 3-feature restriction is intentional: location (lat/lon) captures regional housing market dynamics, and income captures socioeconomic tier. Together they define segments that are both geographically interpretable and economically meaningful.
 
-1. **Wait for the environment to configure automatically**.
-   - All necessary packages and the database will install themselves.
-   - The automatically created `username` and `db_name` are in the **`.env`** file at the root of the project.
-2. **Once Codespaces is ready, you can start working immediately**.
+## Pipeline
 
+| Step | Action |
+|---|---|
+| Feature selection | `MedInc`, `Latitude`, `Longitude` (3 features, per project spec) |
+| Train/test split | 80/20 (16,512 train / 4,128 test) |
+| K-Means | `KMeans(n_clusters=6, n_init="auto", random_state=42)` |
+| Cluster assignment | Labels from training fit applied to both sets |
+| Visualisation | 3 scatter plots per set: Lat vs Lon, Lat vs Income, Lon vs Income |
+| Validation | Decision Tree trained on cluster labels → 100% accuracy on test set |
 
-## 💻 Local Setup (Only if you can't use Codespaces)
+## Results
 
-**Prerequisites**
+**6 clusters identified** — each corresponding to a geographically and economically distinct California region:
 
-Make sure you have Python 3.11+ installed on your machine. You will also need pip to install the Python packages.
+The scatter plots (Latitude vs Longitude coloured by cluster) reveal coherent geographic segments: coastal high-income areas, inland valleys, Southern California metro regions, and rural/agricultural zones — all emerging from the data without any geographic label being provided.
 
-**Installation**
+**Validation:** A `DecisionTreeClassifier` trained to predict K-Means cluster labels from the same 3 features achieves **100% accuracy** on the test set. This confirms the clusters have clean, consistent boundaries — they're not noise, they're structure.
 
-Clone the project repository to your local machine.
+## Key Takeaways
 
-Navigate to the project directory and install the required Python packages:
+- **Unsupervised ≠ no validation:** Without a ground-truth label, cluster quality is assessed differently — do the segments make visual/geographic sense? Can a supervised model reproduce them perfectly? Both checks pass here.
+- **Feature choice shapes the clusters entirely:** Using all 9 features would produce clusters driven by housing age, room counts, and population density. Restricting to income + location produces segments that answer the practical question: *where are high-income vs. low-income areas, and how do they cluster geographically?*
+- **K=6 is a modelling decision, not a discovery:** The number of clusters is chosen, not found. An elbow plot or silhouette analysis would give a principled way to select k rather than specifying it upfront.
+
+## Tech Stack
+
+`Python` · `scikit-learn` · `pandas` · `Matplotlib` · `Seaborn`
+
+## Run It Locally
 
 ```bash
+git clone https://github.com/matthewkane-ml/ML_KMeans_MTK.git
+cd ML_KMeans_MTK
 pip install -r requirements.txt
+jupyter notebook src/KMEANS.ipynb
 ```
 
-**Create a database (if necessary)**
+Both the K-Means model and the validation Decision Tree are saved to `models/` via `pickle`.
 
-Create a new database within the Postgres engine by customizing and executing the following command:
+## What I'd Do Next
 
-```bash
-$ psql -U postgres -c "DO \$\$ BEGIN 
-    CREATE USER my_user WITH PASSWORD 'my_password'; 
-    CREATE DATABASE my_database OWNER my_user; 
-END \$\$;"
-```
-Connect to the Postgres engine to use your database, manipulate tables, and data:
+- Build an **elbow plot** (inertia vs k) and a **silhouette score plot** to find the optimal number of clusters empirically instead of fixing k=6
+- Add `HouseAge` or `MedHouseVal` as a 4th feature and compare how the cluster structure changes
+- Visualise clusters on an actual map using **Folium** or **Plotly** with California county boundaries for a more interpretable presentation
 
-```bash
-$ psql -U my_user -d my_database
-```
+---
 
-Once inside PSQL, you can create tables, run queries, insert, update, or delete data, and much more!
-
-**Environment Variables**
-
-Create a .env file in the root directory of the project to store your environment variables, such as your database connection string:
-
-```makefile
-DATABASE_URL="postgresql://<USER>:<PASSWORD>@<HOST>:<PORT>/<DB_NAME>"
-
-#example
-DATABASE_URL="postgresql://my_user:my_password@localhost:5432/my_database"
-```
-
-## Running the Application
-
-To run the application, execute the app.py script from the root directory of the project:
-
-```bash
-python src/app.py
-```
-
-## Adding Models
-
-To add SQLAlchemy model classes, create new Python script files within the models/ directory. These classes should be defined according to your database schema.
-
-Example model definition (`models/example_model.py`):
-
-```py
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
-
-Base = declarative_base()
-
-class ExampleModel(Base):
-    __tablename__ = 'example_table'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(unique=True)
-```
-
-## Working with Data
-
-You can place your raw datasets in the data/raw directory, intermediate datasets in data/interim, and processed datasets ready for analysis in data/processed.
-
-To process data, you can modify the app.py script to include your data processing steps, using pandas for data manipulation and analysis.
-
-## Contributors
-
-This project is maintained by [matthewkane-ml](https://github.com/matthewkane-ml).
+**Author:** Matthew Kane — [LinkedIn](https://www.linkedin.com/in/thomas-k-392094410/) · [GitHub portfolio](https://github.com/matthewkane-ml)

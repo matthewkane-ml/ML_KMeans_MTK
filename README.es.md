@@ -1,110 +1,68 @@
-# Plantilla de Proyecto de Ciencia de Datos
+# Clustering K-Means — Segmentos de Vivienda en California
 
-Esta plantilla está diseñada para impulsar proyectos de ciencia de datos proporcionando una configuración básica para conexiones de base de datos, procesamiento de datos, y desarrollo de modelos de aprendizaje automático. Incluye una organización estructurada de carpetas para tus conjuntos de datos y un conjunto de paquetes de Python predefinidos necesarios para la mayoría de las tareas de ciencia de datos.
+> Segmentación no supervisada de censos de California usando K-Means (k=6) sobre ingreso medio, latitud y longitud — produciendo clústeres geográficamente coherentes que un Árbol de Decisión supervisado puede reproducir con el 100% de fidelidad, validando la consistencia de los clústeres.
 
-## Estructura
+---
 
-El proyecto está organizado de la siguiente manera:
+## Problema
 
-- **`src/app.py`** → Script principal de Python donde correrá tu proyecto.
-- **`src/explore.ipynb`** → Notebook para exploración y pruebas. Una vez finalizada la exploración, migra el código limpio a `app.py`.
-- **`src/utils.py`** → Funciones auxiliares, como conexión a bases de datos.
-- **`requirements.txt`** → Lista de paquetes de Python necesarios.
-- **`models/`** → Contendrá tus clases de modelos SQLAlchemy.
-- **`data/`** → Almacena los datasets en diferentes etapas:
-  - **`data/raw/`** → Datos sin procesar.
-  - **`data/interim/`** → Datos transformados temporalmente.
-  - **`data/processed/`** → Datos listos para análisis.
+Agrupar distritos de vivienda de California en segmentos significativos basándose en ubicación e ingresos — sin etiquetas predefinidas. Analistas inmobiliarios, urbanistas y prestamistas usan la segmentación geográfica-económica para entender los mercados regionales de vivienda, identificar áreas desatendidas y establecer precios ajustados al riesgo. Este es un problema de aprendizaje no supervisado: no hay una "respuesta correcta", solo agrupaciones significativas frente a no significativas.
 
+## Dataset
 
-## ⚡ Configuración Inicial en Codespaces (Recomendado)
+- **Fuente:** Dataset California Housing (scikit-learn / GitHub)
+- **Tamaño:** 20.640 registros de censos
+- **Características completas disponibles:** MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, Latitude, Longitude, MedHouseVal
+- **Características usadas:** Solo 3 — `MedInc`, `Latitude`, `Longitude`
 
-No es necesario realizar ninguna configuración manual, ya que **Codespaces se configura automáticamente** con los archivos predefinidos que ha creado la academia para ti. Simplemente sigue estos pasos:
+La restricción a 3 características es intencional: la ubicación (lat/lon) captura la dinámica del mercado inmobiliario regional, y los ingresos capturan el nivel socioeconómico. Juntas definen segmentos que son tanto geográficamente interpretables como económicamente significativos.
 
-1. **Espera a que el entorno se configure automáticamente**.
-   - Todos los paquetes necesarios y la base de datos se instalarán por sí mismos.
-   - El `username` y `db_name` creados automáticamente están en el archivo **`.env`** en la raíz del proyecto.
-2. **Una vez que Codespaces esté listo, puedes comenzar a trabajar inmediatamente**.
+## Pipeline
 
+| Paso | Acción |
+|---|---|
+| Selección de características | `MedInc`, `Latitude`, `Longitude` (3 características, según especificación del proyecto) |
+| División train/test | 80/20 (16.512 entrenamiento / 4.128 prueba) |
+| K-Means | `KMeans(n_clusters=6, n_init="auto", random_state=42)` |
+| Asignación de clústeres | Etiquetas del ajuste en entrenamiento aplicadas a ambos conjuntos |
+| Visualización | 3 scatter plots por conjunto: Lat vs Lon, Lat vs Ingresos, Lon vs Ingresos |
+| Validación | Árbol de Decisión entrenado sobre etiquetas de clústeres → 100% de precisión en el conjunto de prueba |
 
-## 💻 Configuración en Local (Solo si no puedes usar Codespaces)
+## Resultados
 
-**Prerrequisitos**
+**6 clústeres identificados** — cada uno correspondiente a una región de California geográfica y económicamente distinta:
 
-Asegúrate de tener Python 3.11+ instalado en tu máquina. También necesitarás pip para instalar los paquetes de Python.
+Los scatter plots (Latitud vs Longitud coloreados por clúster) revelan segmentos geográficos coherentes: zonas costeras de altos ingresos, valles del interior, regiones metropolitanas del sur de California y zonas rurales/agrícolas — todo emergiendo de los datos sin que se proporcione ninguna etiqueta geográfica.
 
-**Instalación**
+**Validación:** Un `DecisionTreeClassifier` entrenado para predecir las etiquetas de clústeres K-Means a partir de las mismas 3 características alcanza **100% de precisión** en el conjunto de prueba. Esto confirma que los clústeres tienen fronteras limpias y consistentes — no son ruido, son estructura.
 
-Clona el repositorio del proyecto en tu máquina local.
+## Conclusiones Clave
 
-Navega hasta el directorio del proyecto e instala los paquetes de Python requeridos:
+- **No supervisado ≠ sin validación:** Sin una etiqueta de verdad absoluta, la calidad de los clústeres se evalúa de forma diferente — ¿tienen sentido los segmentos visual/geográficamente? ¿Puede un modelo supervisado reproducirlos perfectamente? Ambas comprobaciones pasan aquí.
+- **La elección de características da forma completamente a los clústeres:** Usar las 9 características produciría clústeres impulsados por la antigüedad de las viviendas, el número de habitaciones y la densidad de población. Restringir a ingresos + ubicación produce segmentos que responden a la pregunta práctica: *¿dónde están las áreas de altos vs. bajos ingresos, y cómo se agrupan geográficamente?*
+- **K=6 es una decisión de modelado, no un descubrimiento:** El número de clústeres se elige, no se encuentra. Un gráfico de codo o un análisis de silueta proporcionarían una forma fundamentada de seleccionar k en lugar de especificarlo de antemano.
+
+## Stack Tecnológico
+
+`Python` · `scikit-learn` · `pandas` · `Matplotlib` · `Seaborn`
+
+## Ejecutar Localmente
 
 ```bash
+git clone https://github.com/matthewkane-ml/ML_KMeans_MTK.git
+cd ML_KMeans_MTK
 pip install -r requirements.txt
+jupyter notebook src/KMEANS.ipynb
 ```
 
-**Crear una base de datos (si es necesario)**
+Tanto el modelo K-Means como el Árbol de Decisión de validación se guardan en `models/` mediante `pickle`.
 
-Crea una nueva base de datos dentro del motor Postgres personalizando y ejecutando el siguiente comando: 
+## Próximos Pasos
 
-```bash
-$ psql -U postgres -c "DO \$\$ BEGIN 
-    CREATE USER mi_usuario WITH PASSWORD 'mi_contraseña'; 
-    CREATE DATABASE mi_base_de_datos OWNER mi_usuario; 
-END \$\$;"
-```
-Conéctate al motor Postgres para usar tu base de datos, manipular tablas y datos: 
+- Construir un **gráfico de codo** (inercia vs k) y un **gráfico de puntuación de silueta** para encontrar empíricamente el número óptimo de clústeres en lugar de fijar k=6
+- Añadir `HouseAge` o `MedHouseVal` como 4ª característica y comparar cómo cambia la estructura de los clústeres
+- Visualizar los clústeres en un mapa real usando **Folium** o **Plotly** con los límites de los condados de California para una presentación más interpretable
 
-```bash
-$ psql -U mi_usuario -d mi_base_de_datos
-```
+---
 
-¡Una vez que estés dentro de PSQL podrás crear tablas, hacer consultas, insertar, actualizar o eliminar datos y mucho más!
-
-**Variables de entorno**
-
-Crea un archivo .env en el directorio raíz del proyecto para almacenar tus variables de entorno, como tu cadena de conexión a la base de datos:
-
-```makefile
-DATABASE_URL="postgresql://<USUARIO>:<CONTRASEÑA>@<HOST>:<PUERTO>/<NOMBRE_BD>"
-
-#example
-DATABASE_URL="postgresql://mi_usuario:mi_contraseña@localhost:5432/mi_base_de_datos"
-```
-
-## Ejecutando la Aplicación
-
-Para ejecutar la aplicación, ejecuta el script app.py desde la raíz del directorio del proyecto:
-
-```bash
-python src/app.py
-```
-
-## Añadiendo Modelos
-
-Para añadir clases de modelos SQLAlchemy, crea nuevos archivos de script de Python dentro del directorio models/. Estas clases deben ser definidas de acuerdo a tu esquema de base de datos.
-
-Definición del modelo de ejemplo (`models/example_model.py`):
-
-```py
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
-
-Base = declarative_base()
-
-class ExampleModel(Base):
-    __tablename__ = 'example_table'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(unique=True)
-```
-
-## Trabajando con Datos
-
-Puedes colocar tus conjuntos de datos brutos en el directorio data/raw, conjuntos de datos intermedios en data/interim, y los conjuntos de datos procesados listos para el análisis en data/processed.
-
-Para procesar datos, puedes modificar el script app.py para incluir tus pasos de procesamiento de datos, utilizando pandas para la manipulación y análisis de datos.
-
-## Contribuyentes
-
-Este proyecto es mantenido por [matthewkane-ml](https://github.com/matthewkane-ml).
+**Autor:** Matthew Kane — [LinkedIn](https://www.linkedin.com/in/thomas-k-392094410/) · [Portafolio GitHub](https://github.com/matthewkane-ml)
